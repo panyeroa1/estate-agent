@@ -1,0 +1,7 @@
+{
+  "name": "Eburon Estate Agent",
+  "description": "AI-powered Real Estate CRM and Dialer featuring Laurent De Wilde.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
