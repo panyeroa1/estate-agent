@@ -41,6 +41,9 @@ const CRM: React.FC<CRMProps> = ({
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [filterTicketStatus, setFilterTicketStatus] = useState<'ALL' | 'OPEN' | 'SCHEDULED' | 'COMPLETED'>('ALL');
+  
+  // Calendar State
+  const [currentDate, setCurrentDate] = useState(new Date());
 
   useEffect(() => {
     // Reset to dashboard when user changes to prevent dead tabs
@@ -609,7 +612,6 @@ const CRM: React.FC<CRMProps> = ({
       </div>
   );
 
-  // ... (Other Views: Finance, Calendar are reused or simplified for brevity but functional)
   const FinanceView = () => (
       <div className="animate-in fade-in duration-500">
           <h2 className="text-2xl font-bold text-slate-800 mb-6">Financial Overview</h2>
@@ -651,39 +653,75 @@ const CRM: React.FC<CRMProps> = ({
       </div>
   );
 
-  const CalendarView = () => (
+  const CalendarView = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0 = Sun
+    
+    const emptySlots = Array.from({ length: firstDayOfMonth });
+    const daySlots = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+    
+    const monthNames = ["January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ];
+
+    const prevMonth = () => {
+        setCurrentDate(new Date(year, month - 1, 1));
+    };
+    const nextMonth = () => {
+        setCurrentDate(new Date(year, month + 1, 1));
+    };
+    
+    const isToday = (d: number) => {
+        const today = new Date();
+        return d === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+    };
+
+    return (
       <div className="animate-in fade-in duration-500 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-full flex flex-col">
           <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-slate-800">September 2023</h2>
+              <h2 className="text-2xl font-bold text-slate-800">{monthNames[month]} {year}</h2>
               <div className="flex gap-2">
-                  <button className="p-2 border rounded-lg hover:bg-slate-50"><ChevronLeft className="w-4 h-4"/></button>
-                  <button className="p-2 border rounded-lg hover:bg-slate-50"><ChevronRight className="w-4 h-4"/></button>
+                  <button onClick={prevMonth} className="p-2 border rounded-lg hover:bg-slate-50"><ChevronLeft className="w-4 h-4"/></button>
+                  <button onClick={() => setCurrentDate(new Date())} className="px-3 py-1 text-xs font-bold border rounded-lg hover:bg-slate-50">Today</button>
+                  <button onClick={nextMonth} className="p-2 border rounded-lg hover:bg-slate-50"><ChevronRight className="w-4 h-4"/></button>
               </div>
           </div>
           <div className="grid grid-cols-7 gap-px bg-slate-200 border border-slate-200 rounded-lg overflow-hidden flex-1">
-               {/* Simplified Calendar Grid */}
                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                  <div key={d} className="bg-slate-50 p-2 text-center text-xs font-bold text-slate-500 uppercase">{d}</div>
+                  <div key={d} className="bg-slate-50 p-2 text-center text-xs font-bold text-slate-500 uppercase flex items-center justify-center">{d}</div>
                ))}
-               {Array.from({length: 35}).map((_, i) => {
-                  const day = i - 3; 
-                  // Mock Logic to show task dots
-                  const hasTask = tasks.some(t => !t.completed && new Date(t.dueDate).getDate() === day);
+               
+               {emptySlots.map((_, i) => (
+                   <div key={`empty-${i}`} className="bg-white p-2 min-h-[80px]"></div>
+               ))}
+
+               {daySlots.map((day) => {
+                  const dateStr = new Date(year, month, day).toDateString();
+                  const dayTasks = tasks.filter(t => !t.completed && new Date(t.dueDate).toDateString() === dateStr);
 
                   return (
-                      <div key={i} className="bg-white p-2 min-h-[80px] hover:bg-slate-50 transition-colors relative">
-                          {day > 0 && day <= 30 && (
-                              <>
-                                <span className={`text-sm font-medium ${hasTask ? 'text-indigo-600' : 'text-slate-700'}`}>{day}</span>
-                                {hasTask && <div className="absolute bottom-2 right-2 w-2 h-2 rounded-full bg-indigo-500"></div>}
-                              </>
-                          )}
+                      <div key={day} className={`bg-white p-2 min-h-[80px] hover:bg-slate-50 transition-colors relative flex flex-col gap-1 ${isToday(day) ? 'bg-indigo-50/30' : ''}`}>
+                          <span className={`text-sm font-medium w-6 h-6 flex items-center justify-center rounded-full ${isToday(day) ? 'bg-indigo-600 text-white' : 'text-slate-700'}`}>
+                              {day}
+                          </span>
+                          
+                          <div className="flex flex-col gap-1 overflow-y-auto max-h-[60px] no-scrollbar">
+                              {dayTasks.map(t => (
+                                  <div key={t.id} className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded truncate border border-indigo-200" title={t.title}>
+                                      {t.title}
+                                  </div>
+                              ))}
+                          </div>
                       </div>
                   );
                })}
           </div>
       </div>
-  );
+    );
+};
 
 
   return (
@@ -902,7 +940,7 @@ const CRM: React.FC<CRMProps> = ({
                                                 onClick={() => onSelectLead(lead)}
                                                 className={`hover:bg-slate-50 cursor-pointer transition-colors ${selectedLeadId === lead.id ? 'bg-indigo-50/60' : ''}`}
                                             >
-                                                <td className="px-6 py-4">
+                                                <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="flex items-center gap-3">
                                                         <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-500 shrink-0">
                                                             {lead.firstName[0]}{lead.lastName[0]}
