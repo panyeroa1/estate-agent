@@ -93,21 +93,39 @@ export interface Message {
   threadId: string;
 }
 
-export interface Persona {
+export interface Document {
   id: string;
   name: string;
-  roleDescription: string;
-  systemPrompt: string;
-  voiceId: string; // e.g., 'Zephyr', 'Puck'
-  avatar: string;
-  isActive: boolean;
+  type: 'PDF' | 'DOC' | 'IMG' | 'XLS';
+  size: string;
+  date: string;
+  category: 'Contracts' | 'Invoices' | 'Reports' | 'Plans';
+  sharedWith: UserRole[]; // Roles that can see this doc
 }
 
-export interface Integration {
-  id: string;
-  type: 'EMAIL' | 'WHATSAPP' | 'FACEBOOK' | 'INSTAGRAM' | 'LINKEDIN';
+export interface AgentPersona {
   name: string;
-  status: 'CONNECTED' | 'DISCONNECTED';
-  account: string;
-  lastSync?: string;
+  role: string;
+  tone: string;
+  languageStyle: string;
+  objectives: string[];
+}
+
+export interface Email {
+  id: string;
+  from: string;
+  subject: string;
+  preview: string;
+  date: string;
+  read: boolean;
+  source: 'EMAIL' | 'WHATSAPP';
+}
+
+export interface Campaign {
+  id: string;
+  name: string;
+  platform: 'Facebook' | 'Instagram' | 'Google';
+  status: 'Active' | 'Paused';
+  clicks: number;
+  spend: string;
 }

@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { createPcmBlob, decode, decodeAudioData } from './audioUtils';
+import { LAURENT_SYSTEM_PROMPT } from '../constants';
 
 export class GeminiLiveClient {
   private ai: GoogleGenAI;
@@ -26,7 +27,8 @@ export class GeminiLiveClient {
     this.ai = new GoogleGenAI({ apiKey });
   }
 
-  async connect(systemInstruction: string) {
+  // Updated to accept optional custom system prompt
+  async connect(customSystemPrompt?: string) {
     this.disconnect(); // Clean up existing
 
     this.inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
@@ -63,7 +65,8 @@ export class GeminiLiveClient {
         speechConfig: {
           voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } },
         },
-        systemInstruction: systemInstruction,
+        // Use custom prompt if provided, else fallback to default constant
+        systemInstruction: customSystemPrompt || LAURENT_SYSTEM_PROMPT,
       },
     };
 

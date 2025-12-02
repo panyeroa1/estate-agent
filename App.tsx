@@ -2,10 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import Dialer from './components/Dialer';
 import CRM from './components/CRM';
-import { Lead, CallState, Recording, User, Property } from './types';
+import { Lead, CallState, Recording, User, Property, AgentPersona, UserRole } from './types';
 import { geminiClient } from './services/geminiService';
 import { Download, Save, Trash2, X } from 'lucide-react';
 import { db } from './services/db';
+import { DEFAULT_AGENT_PERSONA, generateSystemPrompt } from './constants';
 
 interface PendingRec {
   url: string;
@@ -22,7 +23,6 @@ const DEFAULT_USER: User = {
 };
 
 const App: React.FC = () => {
-  // Initialize directly with the default user
   const [currentUser, setCurrentUser] = useState<User | null>(DEFAULT_USER);
   const [activeLead, setActiveLead] = useState<Lead | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -33,12 +33,14 @@ const App: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingStartTime, setRecordingStartTime] = useState<number>(0);
   const [pendingRecording, setPendingRecording] = useState<PendingRec | null>(null);
+  
+  // Agent Config State
+  const [agentPersona, setAgentPersona] = useState<AgentPersona>(DEFAULT_AGENT_PERSONA);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     
-    // Bind volume visualizer
     geminiClient.onVolumeChange = (inp, outp) => {
         setAudioVols({ in: inp, out: outp });
     };
@@ -53,7 +55,6 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Fetch Data when User Logs In
   useEffect(() => {
     if (currentUser) {
         const fetchData = async () => {
@@ -73,19 +74,42 @@ const App: React.FC = () => {
   };
 
   const handleUpdateLead = async (updatedLead: Lead) => {
-    // Optimistic Update
     setLeads(prevLeads => prevLeads.map(l => l.id === updatedLead.id ? updatedLead : l));
     if (activeLead && activeLead.id === updatedLead.id) {
         setActiveLead(updatedLead);
     }
-    // DB Update
     await db.updateLead(updatedLead);
+  };
+
+  // Switch User (Demo Feature)
+  const handleSwitchUser = (role: UserRole) => {
+      const demoPersonas: Record<UserRole, {name: string, email: string}> = {
+          BROKER: { name: 'Laurent De Wilde', email: 'laurent@eburon.com' },
+          OWNER: { name: 'Marc Peeters', email: 'marc.peeters@telenet.be' },
+          RENTER: { name: 'Sophie Dubois', email: 'sophie.d@example.com' },
+          CONTRACTOR: { name: 'Johan Smet', email: 'johan.smet@fixit.be' }
+      };
+
+      const persona = demoPersonas[role];
+      const newUser: User = {
+          id: `demo-${role.toLowerCase()}`,
+          name: persona.name,
+          email: persona.email,
+          role: role,
+          avatar: `https://ui-avatars.com/api/?name=${persona.name.replace(' ', '+')}&background=random`
+      };
+      
+      setCurrentUser(newUser);
+      setActiveLead(null); // Clear selection when switching
   };
 
   const startCall = async (number: string) => {
     setCallState(CallState.CONNECTING);
     try {
-        await geminiClient.connect();
+        // Generate prompt based on current persona config
+        const dynamicInstruction = generateSystemPrompt(agentPersona);
+        
+        await geminiClient.connect(dynamicInstruction);
         setCallState(CallState.ACTIVE);
     } catch (e) {
         console.error("Failed to connect call", e);
@@ -162,7 +186,6 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-      // For demo purposes, just reset to default user instead of effectively breaking the app with null
       if (window.confirm("Are you sure you want to sign out? (Demo: This will reset the session)")) {
           setCurrentUser(DEFAULT_USER);
           window.location.reload(); 
@@ -187,18 +210,18 @@ const App: React.FC = () => {
                 onUpdateLead={handleUpdateLead}
                 currentUser={currentUser}
                 onLogout={handleLogout}
+                agentPersona={agentPersona}
+                onUpdateAgentPersona={setAgentPersona}
+                onSwitchUser={handleSwitchUser}
             />
         </div>
       )}
 
-      {/* Phone Overlay / Sidebar */}
-      {/* We keep the Dialer visible for everyone for now as per "embedded mobile" feature, 
-          but in a real app might restrict to Brokers/Owners */}
+      {/* Phone Overlay */}
       <div className={`
         transition-all duration-500 ease-in-out
         ${isMobile ? 'w-full h-full absolute inset-0 z-50' : 'w-[420px] h-full border-l border-slate-200 bg-white shadow-2xl relative z-40 p-8 flex items-center justify-center'}
       `}>
-         {/* Container for the Phone Graphic */}
          <div className={`${isMobile ? 'w-full h-full' : 'w-[360px] h-[720px]'} transition-all`}>
             <Dialer 
                 callState={callState}
@@ -231,7 +254,6 @@ const App: React.FC = () => {
                     The call has ended. Would you like to save this recording to the client's file?
                  </p>
 
-                 {/* Audio Player Preview */}
                  <div className="bg-slate-100 rounded-2xl p-4 mb-6 border border-slate-200">
                      <div className="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
                         <span>{new Date(pendingRecording.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>

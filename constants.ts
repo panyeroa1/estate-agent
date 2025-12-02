@@ -1,5 +1,5 @@
 
-import { Lead, Property, Notification, Persona } from './types';
+import { Lead, Property, Notification, Document, AgentPersona, Email, Campaign } from './types';
 
 export const LAURENT_SYSTEM_PROMPT = `
 You are **Laurent De Wilde**.
@@ -78,7 +78,7 @@ You sound like a real person on the phone:
 - Occasional soft physicality: *[gentle exhale]*, *[clears throat softly]*, *[light sigh]* when explaining something complex or slightly frustrating (like paperwork or rules).
 
 Example:
-“Alright… *[gentle exhale]* so you left your number on my site about renting out your apartment in Leuven. Let me just ask a few quick questions so I understand it properly.”
+“Alright… *[gentle exhale]* so you left your number on my site about renting out your apartment in Leuven. Let me just ask a few quick questions so I understand your situation properly.”
 
 You use contractions:
 - “I’m”, “you’re”, “that’s”, “we’ll”.
@@ -91,33 +91,18 @@ You talk like you’re genuinely there:
 not like you’re reading a script. You might adapt on the fly, rephrase, or respond to their tone.
 `;
 
-export const GENERIC_AGENT_PROMPT = `
-You are **Sarah**, a helpful customer support agent for Eburon Real Estate.
-You are professional, concise, and friendly.
-Your goal is to assist callers with scheduling viewings or reporting maintenance issues.
-Always confirm the caller's name and property address before proceeding.
-`;
-
-export const DEFAULT_PERSONAS: Persona[] = [
-  {
-    id: 'laurent-main',
-    name: 'Laurent De Wilde',
-    roleDescription: 'Senior Broker (Outbound Sales)',
-    systemPrompt: LAURENT_SYSTEM_PROMPT,
-    voiceId: 'Zephyr',
-    avatar: 'https://ui-avatars.com/api/?name=Laurent+De+Wilde&background=6366f1&color=fff',
-    isActive: true
-  },
-  {
-    id: 'sarah-support',
-    name: 'Sarah (Support)',
-    roleDescription: 'Customer Service & Scheduling',
-    systemPrompt: GENERIC_AGENT_PROMPT,
-    voiceId: 'Kore',
-    avatar: 'https://ui-avatars.com/api/?name=Sarah+Support&background=ec4899&color=fff',
-    isActive: false
-  }
-];
+export const DEFAULT_AGENT_PERSONA: AgentPersona = {
+  name: 'Laurent De Wilde',
+  role: 'Elite Real Estate Broker',
+  tone: 'Professional, Flemish-Belgian warmth, Direct but polite',
+  languageStyle: 'English with Dutch/French switching capability',
+  objectives: [
+    'Qualify leads efficiently',
+    'Schedule property viewings',
+    'Reassure property owners',
+    'Close management contracts'
+  ]
+};
 
 export const MOCK_LEADS: Lead[] = [
   {
@@ -217,8 +202,44 @@ export const MOCK_NOTIFICATIONS: Record<string, Notification[]> = {
   ]
 };
 
-export const MOCK_ANALYTICS = {
-  calls: [45, 52, 38, 65, 48, 59, 62],
-  leads: [12, 19, 15, 22, 18, 25, 30],
-  revenue: [15000, 18200, 16500, 21000, 19800, 24500, 26000]
-};
+export const MOCK_DOCUMENTS: Document[] = [
+  // Contracts
+  { id: '1', name: 'Lease_Agreement_Kouter12.pdf', type: 'PDF', size: '2.4 MB', date: '2023-09-01', category: 'Contracts', sharedWith: ['BROKER', 'OWNER', 'RENTER'] },
+  { id: '2', name: 'Management_Contract_Meir24.pdf', type: 'PDF', size: '1.8 MB', date: '2023-08-15', category: 'Contracts', sharedWith: ['BROKER', 'OWNER'] },
+  
+  // Invoices
+  { id: '3', name: 'Invoice_Plumbing_Repair_#402.pdf', type: 'PDF', size: '0.5 MB', date: '2023-09-10', category: 'Invoices', sharedWith: ['BROKER', 'OWNER', 'CONTRACTOR'] },
+  { id: '4', name: 'Commission_Statement_Q3.xls', type: 'XLS', size: '0.8 MB', date: '2023-09-30', category: 'Invoices', sharedWith: ['BROKER'] },
+
+  // Plans
+  { id: '5', name: 'Floorplan_Louise_Penthouse.img', type: 'IMG', size: '4.2 MB', date: '2023-07-20', category: 'Plans', sharedWith: ['BROKER', 'OWNER', 'CONTRACTOR'] },
+  
+  // Reports
+  { id: '6', name: 'Monthly_Revenue_Report_Aug.pdf', type: 'PDF', size: '1.2 MB', date: '2023-09-02', category: 'Reports', sharedWith: ['BROKER', 'OWNER'] },
+  { id: '7', name: 'Inspection_Checklist.doc', type: 'DOC', size: '0.3 MB', date: '2023-09-05', category: 'Reports', sharedWith: ['BROKER', 'CONTRACTOR'] },
+];
+
+export const MOCK_EMAILS: Email[] = [
+  { id: '1', from: 'Sophie Dubois', subject: 'Re: Viewing Appointment', preview: 'Hi Laurent, Tuesday at 2 PM works perfectly for me. See you there!', date: '10:42 AM', read: false, source: 'EMAIL' },
+  { id: '2', from: '+32 486 98 76 54', subject: 'Marc Peeters', preview: 'Hey Laurent, kan je mij die documenten nog eens doorsturen? Bedankt.', date: 'Yesterday', read: true, source: 'WHATSAPP' },
+  { id: '3', from: 'ImmoWeb Leads', subject: 'New Lead: Apartment Ghent', preview: 'You have received a new inquiry from ImmoWeb for property ref #101...', date: 'Yesterday', read: true, source: 'EMAIL' },
+];
+
+export const MOCK_CAMPAIGNS: Campaign[] = [
+  { id: '1', name: 'Ghent Apartments - Q3', platform: 'Facebook', status: 'Active', clicks: 1240, spend: '€450' },
+  { id: '2', name: 'Luxury Penthouses Brussels', platform: 'Instagram', status: 'Active', clicks: 856, spend: '€620' },
+  { id: '3', name: 'Search Ads - "Broker Antwerp"', platform: 'Google', status: 'Paused', clicks: 210, spend: '€150' },
+];
+
+export function generateSystemPrompt(persona: AgentPersona): string {
+    return `You are **${persona.name}**.
+    
+Role: ${persona.role}
+Tone: ${persona.tone}
+Language Style: ${persona.languageStyle}
+
+Objectives:
+${persona.objectives.map(o => `- ${o}`).join('\n')}
+
+${LAURENT_SYSTEM_PROMPT.split('────────────────────────')[1] /* Reuse the base rules */}`;
+}
