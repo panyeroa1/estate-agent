@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Lead, Property, User, Ticket, Invoice, Message } from '../types';
+import { Lead, Property, User, Ticket, Invoice } from '../types';
 import { MOCK_NOTIFICATIONS } from '../constants';
 import { db } from '../services/db';
 import { 
@@ -9,7 +9,7 @@ import {
   PhoneMissed, Voicemail, LayoutDashboard, Calendar as CalendarIcon, FileText, 
   PieChart, Settings, Inbox as InboxIcon, Briefcase, Megaphone, Receipt,
   Menu, ChevronLeft, ChevronDown, Wrench, HardHat, Bell, LogOut, Shield,
-  Plus, Filter, Download, ArrowUpRight, ArrowDownLeft
+  Plus, Filter, Download, ArrowUpRight, ArrowDownLeft, AlertCircle
 } from 'lucide-react';
 
 interface CRMProps {
@@ -22,7 +22,7 @@ interface CRMProps {
   onLogout: () => void;
 }
 
-type TabType = 'dashboard' | 'leads' | 'properties' | 'inbox' | 'calendar' | 'documents' | 'finance' | 'marketing' | 'analytics' | 'settings' | 'maintenance' | 'requests' | 'my-home' | 'jobs' | 'schedule' | 'invoices';
+type TabType = 'dashboard' | 'leads' | 'properties' | 'notifications' | 'calendar' | 'documents' | 'finance' | 'marketing' | 'analytics' | 'settings' | 'maintenance' | 'requests' | 'my-home' | 'jobs' | 'schedule' | 'invoices';
 
 const CRM: React.FC<CRMProps> = ({ leads, properties, onSelectLead, selectedLeadId, onUpdateLead, currentUser, onLogout }) => {
   const [tab, setTab] = useState<TabType>('dashboard');
@@ -33,7 +33,6 @@ const CRM: React.FC<CRMProps> = ({ leads, properties, onSelectLead, selectedLead
   // Data State for Tabs
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [filterTicketStatus, setFilterTicketStatus] = useState<'ALL' | 'OPEN' | 'SCHEDULED' | 'COMPLETED'>('ALL');
 
   useEffect(() => {
@@ -45,11 +44,6 @@ const CRM: React.FC<CRMProps> = ({ leads, properties, onSelectLead, selectedLead
         setInvoices([
             { id: '1', amount: 1200, status: 'PAID', date: '2023-09-01', description: 'Monthly Rent', propertyAddress: 'Kouter 12' },
             { id: '2', amount: 240, status: 'PENDING', date: '2023-09-15', description: 'Plumbing Repair', propertyAddress: 'Meir 24' }
-        ]);
-        // Mock Messages
-        setMessages([
-            { id: '1', senderId: '2', senderName: 'Sophie Dubois', content: 'Is the apartment still available?', timestamp: '10:30 AM', read: false, threadId: '1' },
-            { id: '2', senderId: '3', senderName: 'Marc Peeters', content: 'I sent the signed contract.', timestamp: 'Yesterday', read: true, threadId: '2' }
         ]);
     };
     loadData();
@@ -230,52 +224,50 @@ const CRM: React.FC<CRMProps> = ({ leads, properties, onSelectLead, selectedLead
       </div>
   );
 
-  const InboxView = () => (
-      <div className="h-full flex bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm animate-in fade-in">
-          <div className="w-1/3 border-r border-slate-100 bg-slate-50 flex flex-col">
-              <div className="p-4 border-b border-slate-100">
-                  <h3 className="font-bold text-slate-800">Messages</h3>
-              </div>
-              <div className="overflow-y-auto flex-1">
-                  {messages.map(msg => (
-                      <div key={msg.id} className="p-4 border-b border-slate-100 hover:bg-white cursor-pointer transition-colors">
-                          <div className="flex justify-between mb-1">
-                              <span className="font-semibold text-slate-900 text-sm">{msg.senderName}</span>
-                              <span className="text-[10px] text-slate-400">{msg.timestamp}</span>
-                          </div>
-                          <p className="text-xs text-slate-500 line-clamp-1">{msg.content}</p>
-                      </div>
-                  ))}
+  const NotificationsView = () => (
+      <div className="animate-in fade-in duration-500 max-w-4xl mx-auto">
+          <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-slate-800">Notifications</h2>
+              <div className="flex gap-2">
+                   <button className="text-sm text-indigo-600 font-medium hover:underline bg-white px-3 py-1 rounded-lg border border-slate-100 shadow-sm">Mark all as read</button>
               </div>
           </div>
-          <div className="flex-1 flex flex-col bg-white">
-              <div className="p-4 border-b border-slate-100 flex justify-between items-center">
-                   <div className="flex items-center gap-3">
-                       <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-xs">SD</div>
-                       <span className="font-bold text-slate-800">Sophie Dubois</span>
-                   </div>
-                   <Settings className="w-4 h-4 text-slate-400" />
-              </div>
-              <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-slate-50/50">
-                  <div className="flex justify-end">
-                      <div className="bg-indigo-600 text-white px-4 py-2 rounded-2xl rounded-tr-sm text-sm max-w-xs shadow-sm">
-                          Hi Sophie, thanks for reaching out. Yes, the apartment in Ghent is still available.
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              {notifications.length > 0 ? (
+                  <div className="divide-y divide-slate-100">
+                      {notifications.map((n) => (
+                          <div key={n.id} className={`p-6 flex gap-4 hover:bg-slate-50 transition-colors ${!n.read ? 'bg-indigo-50/40' : ''}`}>
+                               <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 border border-transparent shadow-sm ${
+                                  n.type === 'alert' ? 'bg-red-100 text-red-600' : 
+                                  n.type === 'success' ? 'bg-emerald-100 text-emerald-600' : 
+                                  'bg-blue-100 text-blue-600'
+                               }`}>
+                                  {n.type === 'alert' ? <AlertCircle className="w-5 h-5"/> : 
+                                   n.type === 'success' ? <CheckCircle className="w-5 h-5"/> : 
+                                   <Bell className="w-5 h-5"/>}
+                               </div>
+                               <div className="flex-1">
+                                  <div className="flex justify-between items-start mb-1">
+                                      <h4 className={`text-sm font-bold ${!n.read ? 'text-slate-900' : 'text-slate-700'}`}>{n.title}</h4>
+                                      <span className="text-xs text-slate-400 whitespace-nowrap ml-4 font-medium">{n.time}</span>
+                                  </div>
+                                  <p className="text-sm text-slate-600 leading-relaxed">{n.message}</p>
+                               </div>
+                               {!n.read && (
+                                   <div className="w-2.5 h-2.5 bg-indigo-600 rounded-full mt-2 ring-2 ring-white"></div>
+                               )}
+                          </div>
+                      ))}
+                  </div>
+              ) : (
+                  <div className="p-12 text-center">
+                      <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
+                          <Bell className="w-8 h-8 text-slate-300"/>
                       </div>
+                      <h3 className="text-lg font-medium text-slate-900">No notifications</h3>
+                      <p className="text-slate-500 mt-1">You're all caught up!</p>
                   </div>
-                  <div className="flex justify-start">
-                       <div className="bg-white text-slate-700 border border-slate-100 px-4 py-2 rounded-2xl rounded-tl-sm text-sm max-w-xs shadow-sm">
-                          That's great! When can I visit? I am free this Thursday.
-                      </div>
-                  </div>
-              </div>
-              <div className="p-4 border-t border-slate-100 bg-white">
-                  <div className="flex gap-2">
-                      <input type="text" placeholder="Type a message..." className="flex-1 bg-slate-100 border-none rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
-                      <button className="p-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors">
-                          <Send className="w-4 h-4" />
-                      </button>
-                  </div>
-              </div>
+              )}
           </div>
       </div>
   );
@@ -509,7 +501,7 @@ const CRM: React.FC<CRMProps> = ({ leads, properties, onSelectLead, selectedLead
                     <div className="px-3 space-y-0.5">
                         <NavItem id="leads" label="Leads" icon={UserIcon} badge={leads.length.toString()} />
                         <NavItem id="properties" label="Properties" icon={Home} />
-                        <NavItem id="inbox" label="Inbox" icon={InboxIcon} badge="2" />
+                        <NavItem id="notifications" label="Notifications" icon={Bell} badge={unreadCount > 0 ? unreadCount.toString() : undefined} />
                         <NavItem id="calendar" label="Calendar" icon={CalendarIcon} />
                         <NavItem id="maintenance" label="Maintenance" icon={Wrench} badge={tickets.filter(t=>t.status==='OPEN').length.toString()} />
                     </div>
@@ -613,7 +605,7 @@ const CRM: React.FC<CRMProps> = ({ leads, properties, onSelectLead, selectedLead
             <div className={`flex-1 overflow-y-auto no-scrollbar p-4 md:p-8 transition-all duration-300 ${activeLead && currentUser.role === 'BROKER' && tab === 'leads' ? 'hidden xl:block' : ''}`}>
                 <div className="max-w-6xl mx-auto h-full">
                     {tab === 'dashboard' && <DashboardView />}
-                    {tab === 'inbox' && <InboxView />}
+                    {tab === 'notifications' && <NotificationsView />}
                     {(tab === 'calendar' || tab === 'schedule') && <CalendarView />}
                     {tab === 'documents' && <DocumentsView />}
                     {tab === 'finance' && <FinanceView />}
