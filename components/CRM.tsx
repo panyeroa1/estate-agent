@@ -967,15 +967,38 @@ const CRM: React.FC<CRMProps> = ({
                         <button onClick={() => onSelectLead(null)} className="p-1 hover:bg-slate-100 rounded-lg"><X className="w-5 h-5 text-slate-500" /></button>
                     </div>
                     <div className="p-6">
-                         <div className="flex items-center gap-5 mb-8">
-                             <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center text-2xl font-bold text-indigo-600">
+                         {/* Header Section */}
+                         <div className="flex items-center gap-4 mb-6">
+                             <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center text-2xl font-bold text-white shadow-lg shadow-indigo-200">
                                 {activeLead.firstName[0]}{activeLead.lastName[0]}
                              </div>
                              <div>
                                 <h2 className="text-xl font-bold text-slate-900">{activeLead.firstName} {activeLead.lastName}</h2>
-                                <p className="text-slate-500 text-sm">{activeLead.phone}</p>
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${activeLead.status === 'New' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                                    {activeLead.status}
+                                </span>
                              </div>
                         </div>
+
+                        {/* Contact Actions */}
+                        <div className="grid grid-cols-2 gap-3 mb-8">
+                            <a href={`tel:${activeLead.phone}`} className="flex flex-col items-center justify-center p-3 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 rounded-xl transition-colors group cursor-pointer">
+                                <div className="w-8 h-8 bg-indigo-200 text-indigo-700 rounded-full flex items-center justify-center mb-2 group-hover:bg-white group-hover:scale-110 transition-all shadow-sm">
+                                    <Phone className="w-4 h-4 fill-current" />
+                                </div>
+                                <span className="text-xs font-bold text-indigo-900">Call Mobile</span>
+                                <span className="text-[10px] text-indigo-600 font-medium truncate max-w-full">{activeLead.phone}</span>
+                            </a>
+                            
+                            <a href={`mailto:${activeLead.email}`} className="flex flex-col items-center justify-center p-3 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-xl transition-colors group cursor-pointer">
+                                <div className="w-8 h-8 bg-slate-200 text-slate-600 rounded-full flex items-center justify-center mb-2 group-hover:bg-white group-hover:scale-110 transition-all shadow-sm">
+                                    <Mail className="w-4 h-4" />
+                                </div>
+                                <span className="text-xs font-bold text-slate-900">Send Email</span>
+                                <span className="text-[10px] text-slate-500 font-medium truncate max-w-full">{activeLead.email}</span>
+                            </a>
+                        </div>
+
                         {/* Call History & Notes Section */}
                          <div className="mb-6">
                              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">History</h4>
