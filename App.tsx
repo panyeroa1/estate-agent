@@ -5,7 +5,7 @@ import CRM from './components/CRM';
 import { Lead, CallState, Recording, User, Property, AgentPersona, UserRole, Task } from './types';
 import { geminiClient } from './services/geminiService';
 import { blandService } from './services/blandService';
-import { Download, Save, Trash2, X, AlertCircle } from 'lucide-react';
+import { Download, Save, Trash2, X, AlertCircle, Loader2 } from 'lucide-react';
 import { db } from './services/db';
 import { DEFAULT_AGENT_PERSONA, generateSystemPrompt } from './constants';
 
@@ -37,6 +37,12 @@ const App: React.FC = () => {
   const [pendingRecording, setPendingRecording] = useState<PendingRec | null>(null);
   const [recordingOutcome, setRecordingOutcome] = useState<'connected' | 'missed' | 'voicemail' | 'follow_up' | 'closed'>('connected');
   
+  // Track the actual API Call ID
+  const [currentCallId, setCurrentCallId] = useState<string | null>(null);
+  
+  // Loading state for fetching recording
+  const [isFetchingRecording, setIsFetchingRecording] = useState(false);
+
   // Agent Config State
   const [agentPersona, setAgentPersona] = useState<AgentPersona>(DEFAULT_AGENT_PERSONA);
 
@@ -125,6 +131,7 @@ const App: React.FC = () => {
   const startCall = async (number: string) => {
     // 1. Set Ringing State
     setCallState(CallState.RINGING);
+    setPendingRecording(null); // Reset prev recording
     
     // 2. Play Ringtone
     const ringAudio = new Audio('https://botsrhere.online/deontic/callerpro/ring.mp3');
@@ -138,18 +145,14 @@ const App: React.FC = () => {
     }
 
     // 3. Initiate Call via Bland AI Service
-    // We start the API call immediately. The Ringtone gives the user feedback while the API processes.
-    
     try {
         const result = await blandService.initiateCall(number, agentPersona);
         
         if (result.status === 'success' && result.call_id) {
             console.log("Call Initiated:", result.call_id);
+            setCurrentCallId(result.call_id); // Save ID for fetching recording later
             
             // Wait for 9s ring effect to complete or match ring time
-            // In a real dialer we might wait for a webhook 'answered' event, 
-            // but for this UI we simulate the transition after ringing.
-            
             ringTimeoutRef.current = setTimeout(async () => {
                 if (ringtoneRef.current) {
                     ringtoneRef.current.pause();
@@ -157,13 +160,13 @@ const App: React.FC = () => {
                 }
                 
                 setCallState(CallState.ACTIVE);
+                setRecordingStartTime(Date.now()); // Fallback start time
                 
                 // Attempt to connect to live monitoring stream for visualization
                 const wsUrl = await blandService.listenToCall(result.call_id);
                 if (wsUrl) {
                     const ws = new WebSocket(wsUrl);
                     ws.onmessage = () => {
-                        // Simulate visuals on message (real data requires parsing binary/base64)
                          setAudioVols({ in: Math.random() * 0.5, out: Math.random() * 0.5 });
                     };
                     setMonitorWs(ws);
@@ -186,25 +189,56 @@ const App: React.FC = () => {
   };
 
   const stopRecordingAndPrompt = async () => {
-    // With Bland, recording is server-side. 
-    // For this demo, we simulate the "Stop Recording" action finishing the call session or marking it.
-    // If using Gemini (browser), we had a blob. With Bland, we'd fetch the recording URL from API later.
-    // We'll simulate a URL for the UI flow.
-    
-    const duration = Math.floor((Date.now() - recordingStartTime) / 1000);
     setIsRecording(false);
     
-    // Mock recording URL for the review modal (In real app, fetch from Bland /v1/calls/{id}/recording)
-    const url = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"; 
-    
-    if (url) {
-       setPendingRecording({
-           url,
-           duration,
-           timestamp: recordingStartTime
-       });
-       setRecordingOutcome('connected'); // Default outcome
+    if (!currentCallId) {
+        console.error("No call ID found to fetch recording");
+        return;
     }
+
+    setIsFetchingRecording(true);
+    
+    // Polling logic: Attempt to get the recording URL 3 times
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    const fetchLoop = async () => {
+        try {
+            const callData = await blandService.getCallDetails(currentCallId);
+            
+            if (callData && callData.recording_url) {
+                // Success - we have the real URL
+                const duration = callData.call_length 
+                    ? Math.round(callData.call_length * 60) // API usually returns minutes? check docs. Usually float minutes.
+                    : Math.floor((Date.now() - recordingStartTime) / 1000); // Fallback
+
+                setPendingRecording({
+                   url: callData.recording_url,
+                   duration: duration, 
+                   timestamp: recordingStartTime
+                });
+                setRecordingOutcome('connected');
+                setIsFetchingRecording(false);
+            } else {
+                // Not ready yet, retry
+                attempts++;
+                if (attempts < maxAttempts) {
+                    console.log(`Recording not ready, retrying (${attempts}/${maxAttempts})...`);
+                    setTimeout(fetchLoop, 2000); // Wait 2s
+                } else {
+                    console.warn("Recording URL not found after retries.");
+                    setIsFetchingRecording(false);
+                    // Optional: Show error or just close
+                }
+            }
+        } catch (e) {
+            console.error("Error fetching call details", e);
+            setIsFetchingRecording(false);
+        }
+    };
+
+    // Start fetching
+    setTimeout(fetchLoop, 1000); // Initial delay
   };
 
   const handleEndCall = async () => {
@@ -223,7 +257,8 @@ const App: React.FC = () => {
         setMonitorWs(null);
     }
 
-    if (isRecording) {
+    // Always attempt to fetch recording details when call ends normally
+    if (callState === CallState.ACTIVE && currentCallId) {
         await stopRecordingAndPrompt();
     }
     
@@ -235,14 +270,9 @@ const App: React.FC = () => {
   };
 
   const toggleRecording = (shouldRecord: boolean) => {
-    if (shouldRecord) {
-        // Bland records automatically if config.record is true. 
-        // This button mainly tracks UI state for the "Review" modal.
-        setRecordingStartTime(Date.now());
-        setIsRecording(true);
-    } else {
-        stopRecordingAndPrompt();
-    }
+    // Bland records automatically based on config.
+    // This button just updates UI state.
+    setIsRecording(shouldRecord);
   };
 
   const handleConfirmSave = async () => {
@@ -280,12 +310,14 @@ const App: React.FC = () => {
      }
 
      setPendingRecording(null);
+     setCurrentCallId(null);
   };
 
   const handleDownloadRecording = () => {
       if (!pendingRecording) return;
       const a = document.createElement('a');
       a.href = pendingRecording.url;
+      a.target = "_blank"; // Open in new tab for direct mp3 links
       a.download = `call-recording-${new Date(pendingRecording.timestamp).toISOString()}.mp3`;
       document.body.appendChild(a);
       a.click();
@@ -294,6 +326,7 @@ const App: React.FC = () => {
 
   const handleDiscardRecording = () => {
       setPendingRecording(null);
+      setCurrentCallId(null);
   };
 
   const handleLogout = () => {
@@ -352,8 +385,19 @@ const App: React.FC = () => {
          </div>
       </div>
 
+      {/* Loading Overlay for Recording Fetch */}
+      {isFetchingRecording && (
+          <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+              <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center animate-in zoom-in-95">
+                  <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-3" />
+                  <p className="text-slate-800 font-bold">Processing Recording...</p>
+                  <p className="text-xs text-slate-500">Retrieving audio file from server</p>
+              </div>
+          </div>
+      )}
+
       {/* Recording Review Modal */}
-      {pendingRecording && (
+      {pendingRecording && !isFetchingRecording && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
              <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 animate-in zoom-in-95 duration-200 border border-slate-200">
                  <div className="flex justify-between items-center mb-4">
@@ -370,7 +414,7 @@ const App: React.FC = () => {
                  <div className="bg-slate-100 rounded-2xl p-4 mb-6 border border-slate-200">
                      <div className="flex justify-between text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
                         <span>{new Date(pendingRecording.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                        <span>{Math.floor(pendingRecording.duration / 60)}:{(pendingRecording.duration % 60).toString().padStart(2, '0')}</span>
+                        <span>{Math.floor(pendingRecording.duration / 60)}:{(pendingRecording.duration % 60).toFixed(0).padStart(2, '0')}</span>
                      </div>
                      <audio controls src={pendingRecording.url} className="w-full h-8 accent-indigo-600" />
                  </div>

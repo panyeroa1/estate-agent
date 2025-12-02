@@ -1,4 +1,5 @@
 
+
 export interface Recording {
   id: string;
   timestamp: number;
@@ -110,6 +111,11 @@ export interface AgentPersona {
   tone: string;
   languageStyle: string;
   objectives: string[];
+  systemPrompt?: string;
+  voiceId?: string;
+  model?: string;
+  tools?: string[];
+  firstSentence?: string;
 }
 
 export interface Email {

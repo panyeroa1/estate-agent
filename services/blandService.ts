@@ -10,11 +10,11 @@ export class BlandService {
   ): Promise<{ status: string, call_id: string, message?: string }> {
     
     // Generate the Laurent De Wilde persona prompt
-    const taskPrompt = generateSystemPrompt(persona);
+    const taskPrompt = persona.systemPrompt || generateSystemPrompt(persona);
 
     const payload = {
       phone_number: phoneNumber,
-      voice: BLAND_SETTINGS.voiceId,
+      voice: persona.voiceId || BLAND_SETTINGS.voiceId,
       wait_for_greeting: false,
       record: true,
       answered_by_enabled: true,
@@ -22,16 +22,16 @@ export class BlandService {
       interruption_threshold: 500,
       block_interruptions: false,
       max_duration: 37.7, // As per snippet
-      model: BLAND_SETTINGS.model,
+      model: persona.model || BLAND_SETTINGS.model,
       language: BLAND_SETTINGS.language,
       background_track: "office",
       endpoint: "https://api.bland.ai",
       voicemail_action: "hangup",
       from: BLAND_SETTINGS.fromNumber,
-      tools: BLAND_SETTINGS.tools,
+      tools: persona.tools && persona.tools.length > 0 ? persona.tools : BLAND_SETTINGS.tools,
       // We explicitly set the task (System Prompt) and First Sentence
       task: taskPrompt, 
-      first_sentence: `Hi, this is ${persona.name}, a broker here in Belgium — you left your number on my site earlier, so I just wanted to personally see how I can help you with your property or search.`,
+      first_sentence: persona.firstSentence || `Hi, this is ${persona.name}, a broker here in Belgium — you left your number on my site earlier, so I just wanted to personally see how I can help you with your property or search.`,
       temperature: 0.6
     };
 
@@ -68,6 +68,29 @@ export class BlandService {
             return null;
       } catch(e) {
           console.error("Failed to get listen URL", e);
+          return null;
+      }
+  }
+
+  // Fetch actual call details including recording_url
+  async getCallDetails(callId: string): Promise<any> {
+      try {
+          const response = await fetch(`https://api.bland.ai/v1/calls/${callId}`, {
+              method: 'GET',
+              headers: {
+                  'Authorization': BLAND_AUTH.apiKey,
+                  'encrypted_key': BLAND_AUTH.encryptedKey
+              }
+          });
+          
+          if (!response.ok) {
+              throw new Error(`Error fetching call details: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          return data;
+      } catch (error) {
+          console.error("Failed to fetch call details", error);
           return null;
       }
   }
