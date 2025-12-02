@@ -4,7 +4,7 @@ import { createPcmBlob, decode, decodeAudioData } from './audioUtils';
 import { LAURENT_SYSTEM_PROMPT } from '../constants';
 
 export class GeminiLiveClient {
-  private ai: GoogleGenAI;
+  private ai: GoogleGenAI | null = null;
   private sessionPromise: Promise<any> | null = null;
   private inputAudioContext: AudioContext | null = null;
   private outputAudioContext: AudioContext | null = null;
@@ -22,14 +22,19 @@ export class GeminiLiveClient {
   public onClose: (() => void) | null = null;
 
   constructor() {
-    // Note: In a real app, strict error handling for missing API KEY is needed.
-    const apiKey = process.env.API_KEY || '';
-    this.ai = new GoogleGenAI({ apiKey });
+    // Client is initialized in connect()
   }
 
   // Updated to accept optional custom system prompt
   async connect(customSystemPrompt?: string) {
     this.disconnect(); // Clean up existing
+
+    // Initialize AI Client here to ensure we get the latest process.env.API_KEY
+    const apiKey = process.env.API_KEY || '';
+    if (!apiKey) {
+        console.error("API_KEY is missing in process.env");
+    }
+    this.ai = new GoogleGenAI({ apiKey });
 
     this.inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
     this.outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
@@ -54,7 +59,10 @@ export class GeminiLiveClient {
       callbacks: {
         onopen: this.handleOpen.bind(this),
         onmessage: this.handleMessage.bind(this),
-        onerror: (e: ErrorEvent) => console.error('Gemini Error:', e),
+        onerror: (e: ErrorEvent) => {
+            console.error('Gemini Error:', e);
+            // If the error is network related, it might be due to API Key or firewall
+        },
         onclose: (e: CloseEvent) => {
             console.log('Gemini Session Closed', e);
             if(this.onClose) this.onClose();
@@ -70,11 +78,22 @@ export class GeminiLiveClient {
       },
     };
 
-    this.sessionPromise = this.ai.live.connect(config);
+    if (this.ai && this.ai.live) {
+        this.sessionPromise = this.ai.live.connect(config);
+    }
   }
 
   private handleOpen() {
     console.log('Gemini Live Connected');
+    
+    // Ensure contexts are running (needed for some browsers)
+    if (this.inputAudioContext && this.inputAudioContext.state === 'suspended') {
+        this.inputAudioContext.resume();
+    }
+    if (this.outputAudioContext && this.outputAudioContext.state === 'suspended') {
+        this.outputAudioContext.resume();
+    }
+
     if (!this.inputAudioContext || !this.stream) return;
 
     const source = this.inputAudioContext.createMediaStreamSource(this.stream);
