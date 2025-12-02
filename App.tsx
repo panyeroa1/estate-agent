@@ -2,9 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import Dialer from './components/Dialer';
 import CRM from './components/CRM';
-import { Lead, CallState, Recording, User, Property, AgentPersona, UserRole } from './types';
+import { Lead, CallState, Recording, User, Property, AgentPersona, UserRole, Task } from './types';
 import { geminiClient } from './services/geminiService';
-import { Download, Save, Trash2, X } from 'lucide-react';
+import { Download, Save, Trash2, X, AlertCircle } from 'lucide-react';
 import { db } from './services/db';
 import { DEFAULT_AGENT_PERSONA, generateSystemPrompt } from './constants';
 
@@ -27,12 +27,14 @@ const App: React.FC = () => {
   const [activeLead, setActiveLead] = useState<Lead | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [callState, setCallState] = useState<CallState>(CallState.IDLE);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [audioVols, setAudioVols] = useState<{in: number, out: number}>({in: 0, out: 0});
   const [isRecording, setIsRecording] = useState(false);
   const [recordingStartTime, setRecordingStartTime] = useState<number>(0);
   const [pendingRecording, setPendingRecording] = useState<PendingRec | null>(null);
+  const [recordingOutcome, setRecordingOutcome] = useState<'connected' | 'missed' | 'voicemail' | 'follow_up' | 'closed'>('connected');
   
   // Agent Config State
   const [agentPersona, setAgentPersona] = useState<AgentPersona>(DEFAULT_AGENT_PERSONA);
@@ -58,12 +60,14 @@ const App: React.FC = () => {
   useEffect(() => {
     if (currentUser) {
         const fetchData = async () => {
-            const [fetchedLeads, fetchedProperties] = await Promise.all([
+            const [fetchedLeads, fetchedProperties, fetchedTasks] = await Promise.all([
                 db.getLeads(),
-                db.getProperties()
+                db.getProperties(),
+                db.getTasks()
             ]);
             setLeads(fetchedLeads);
             setProperties(fetchedProperties);
+            setTasks(fetchedTasks);
         };
         fetchData();
     }
@@ -79,6 +83,11 @@ const App: React.FC = () => {
         setActiveLead(updatedLead);
     }
     await db.updateLead(updatedLead);
+  };
+
+  const handleUpdateTask = async (updatedTask: Task) => {
+      setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+      await db.updateTask(updatedTask);
   };
 
   // Switch User (Demo Feature)
@@ -129,6 +138,7 @@ const App: React.FC = () => {
            duration,
            timestamp: recordingStartTime
        });
+       setRecordingOutcome('connected'); // Default outcome
     }
   };
 
@@ -151,7 +161,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleConfirmSave = () => {
+  const handleConfirmSave = async () => {
      if (!pendingRecording || !activeLead) return;
      
      const newRecording: Recording = {
@@ -159,7 +169,7 @@ const App: React.FC = () => {
         timestamp: pendingRecording.timestamp,
         duration: pendingRecording.duration,
         url: pendingRecording.url,
-        outcome: 'connected'
+        outcome: recordingOutcome
      };
      
      const updatedLead = {
@@ -167,7 +177,24 @@ const App: React.FC = () => {
          recordings: [newRecording, ...activeLead.recordings]
      };
 
-     handleUpdateLead(updatedLead);
+     await handleUpdateLead(updatedLead);
+
+     // Automated Action: Create Task if 'Follow up needed'
+     if (recordingOutcome === 'follow_up') {
+         const newTask: Task = {
+             id: `task-${Date.now()}`,
+             title: `Follow up with ${activeLead.firstName} ${activeLead.lastName}`,
+             dueDate: new Date(Date.now() + 86400000).toISOString(), // +24 hours
+             completed: false,
+             leadId: activeLead.id,
+             leadName: `${activeLead.firstName} ${activeLead.lastName}`,
+             priority: 'MEDIUM'
+         };
+         await db.createTask(newTask);
+         setTasks(prev => [...prev, newTask]);
+         alert("Follow-up task created automatically for tomorrow.");
+     }
+
      setPendingRecording(null);
   };
 
@@ -213,6 +240,8 @@ const App: React.FC = () => {
                 agentPersona={agentPersona}
                 onUpdateAgentPersona={setAgentPersona}
                 onSwitchUser={handleSwitchUser}
+                tasks={tasks}
+                onUpdateTask={handleUpdateTask}
             />
         </div>
       )}
@@ -251,7 +280,7 @@ const App: React.FC = () => {
                  </div>
                  
                  <p className="text-sm text-slate-500 mb-6 font-medium leading-relaxed">
-                    The call has ended. Would you like to save this recording to the client's file?
+                    The call has ended. Please categorize the outcome and save the recording.
                  </p>
 
                  <div className="bg-slate-100 rounded-2xl p-4 mb-6 border border-slate-200">
@@ -260,6 +289,32 @@ const App: React.FC = () => {
                         <span>{Math.floor(pendingRecording.duration / 60)}:{(pendingRecording.duration % 60).toString().padStart(2, '0')}</span>
                      </div>
                      <audio controls src={pendingRecording.url} className="w-full h-8 accent-indigo-600" />
+                 </div>
+
+                 {/* Outcome Selector */}
+                 <div className="mb-6">
+                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Call Outcome</label>
+                     <div className="grid grid-cols-2 gap-2">
+                         {(['connected', 'voicemail', 'missed', 'follow_up', 'closed'] as const).map(outcome => (
+                             <button
+                                key={outcome}
+                                onClick={() => setRecordingOutcome(outcome)}
+                                className={`px-2 py-2 text-xs font-bold rounded-lg border transition-all ${
+                                    recordingOutcome === outcome 
+                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' 
+                                    : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
+                                }`}
+                             >
+                                 {outcome.replace('_', ' ').charAt(0).toUpperCase() + outcome.replace('_', ' ').slice(1)}
+                             </button>
+                         ))}
+                     </div>
+                     {recordingOutcome === 'follow_up' && (
+                         <div className="mt-2 flex items-start gap-2 text-xs text-indigo-600 bg-indigo-50 p-2 rounded-lg">
+                             <AlertCircle className="w-4 h-4 shrink-0" />
+                             <span>A task will be automatically created for tomorrow.</span>
+                         </div>
+                     )}
                  </div>
 
                  <div className="space-y-3">

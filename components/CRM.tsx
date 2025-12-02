@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Lead, Property, User, Ticket, Invoice, AgentPersona, UserRole, Document } from '../types';
+import { Lead, Property, User, Ticket, Invoice, AgentPersona, UserRole, Document, Task } from '../types';
 import { MOCK_NOTIFICATIONS, MOCK_DOCUMENTS, MOCK_EMAILS, MOCK_CAMPAIGNS } from '../constants';
 import { db } from '../services/db';
 import { 
@@ -10,7 +10,7 @@ import {
   PieChart, Settings, Inbox as InboxIcon, Briefcase, Megaphone, Receipt,
   Menu, ChevronLeft, ChevronDown, Wrench, HardHat, Bell, LogOut, Shield,
   Plus, Filter, Download, ArrowUpRight, ArrowDownLeft, AlertCircle, File, Image as ImageIcon,
-  MessageSquare, BarChart3, Target, Bot, Users
+  MessageSquare, BarChart3, Target, Bot, Users, CheckSquare, CalendarDays
 } from 'lucide-react';
 
 interface CRMProps {
@@ -24,13 +24,15 @@ interface CRMProps {
   agentPersona: AgentPersona;
   onUpdateAgentPersona: (persona: AgentPersona) => void;
   onSwitchUser: (role: UserRole) => void;
+  tasks: Task[];
+  onUpdateTask: (task: Task) => void;
 }
 
-type TabType = 'dashboard' | 'leads' | 'properties' | 'notifications' | 'calendar' | 'documents' | 'finance' | 'marketing' | 'analytics' | 'settings' | 'maintenance' | 'requests' | 'my-home' | 'jobs' | 'schedule' | 'invoices' | 'agent-config' | 'inbox';
+type TabType = 'dashboard' | 'leads' | 'properties' | 'notifications' | 'calendar' | 'documents' | 'finance' | 'marketing' | 'analytics' | 'settings' | 'maintenance' | 'requests' | 'my-home' | 'jobs' | 'schedule' | 'invoices' | 'agent-config' | 'inbox' | 'tasks';
 
 const CRM: React.FC<CRMProps> = ({ 
     leads, properties, onSelectLead, selectedLeadId, onUpdateLead, currentUser, onLogout,
-    agentPersona, onUpdateAgentPersona, onSwitchUser
+    agentPersona, onUpdateAgentPersona, onSwitchUser, tasks, onUpdateTask
 }) => {
   const [tab, setTab] = useState<TabType>('dashboard');
   const [noteInput, setNoteInput] = useState('');
@@ -60,6 +62,7 @@ const CRM: React.FC<CRMProps> = ({
   const activeLead = leads.find(l => l.id === selectedLeadId);
   const notifications = MOCK_NOTIFICATIONS[currentUser.role] || [];
   const unreadCount = notifications.filter(n => !n.read).length;
+  const pendingTasks = tasks.filter(t => !t.completed).length;
 
   const handleSaveNote = () => {
     if (!noteInput.trim() || !activeLead) return;
@@ -71,11 +74,12 @@ const CRM: React.FC<CRMProps> = ({
     setNoteInput('');
   };
 
-  const getStatusIcon = (outcome: 'connected' | 'missed' | 'voicemail') => {
+  const getStatusIcon = (outcome: string) => {
       switch(outcome) {
           case 'connected': return <PhoneIncoming className="w-4 h-4 text-emerald-500" />;
           case 'missed': return <PhoneMissed className="w-4 h-4 text-red-500" />;
           case 'voicemail': return <Voicemail className="w-4 h-4 text-amber-500" />;
+          case 'follow_up': return <CalendarDays className="w-4 h-4 text-indigo-500" />;
           default: return <Phone className="w-4 h-4 text-slate-400" />;
       }
   };
@@ -114,7 +118,7 @@ const CRM: React.FC<CRMProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               {[
                   { label: currentUser.role === 'BROKER' ? 'Revenue' : 'Balance', val: '€42.5k', change: '+12%', icon: DollarSign, color: 'bg-indigo-500' },
-                  { label: 'Active Items', val: tickets.filter(t => t.status !== 'COMPLETED').length + 4, change: '-2', icon: Briefcase, color: 'bg-amber-500' },
+                  { label: 'Pending Tasks', val: pendingTasks, change: 'Keep it up', icon: CheckSquare, color: 'bg-amber-500' },
                   { label: 'Messages', val: '12', change: 'New', icon: Mail, color: 'bg-blue-500' },
                   { label: 'Rating', val: '4.9', change: '+0.1', icon: CheckCircle, color: 'bg-emerald-500' }
               ].map((stat, i) => (
@@ -134,21 +138,48 @@ const CRM: React.FC<CRMProps> = ({
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Tasks Summary */}
               <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                  <h3 className="font-bold text-slate-800 mb-4">Recent Activity</h3>
-                  <div className="space-y-4">
-                      {notifications.slice(0,4).map(n => (
-                          <div key={n.id} className="flex items-center gap-4">
-                              <div className={`w-2 h-2 rounded-full ${n.type === 'alert' ? 'bg-red-500' : 'bg-blue-500'}`}></div>
+                  <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-bold text-slate-800">Upcoming Tasks</h3>
+                      <button onClick={() => setTab('tasks')} className="text-xs text-indigo-600 font-bold hover:underline">View All</button>
+                  </div>
+                  <div className="space-y-3">
+                      {tasks.filter(t => !t.completed).slice(0, 4).map(task => (
+                          <div key={task.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors">
+                              <button 
+                                onClick={() => onUpdateTask({...task, completed: true})}
+                                className="w-5 h-5 rounded border border-slate-300 flex items-center justify-center hover:border-indigo-500 hover:bg-white transition-colors"
+                              >
+                                  <div className="w-0 h-0" />
+                              </button>
                               <div className="flex-1">
-                                  <p className="text-sm font-medium text-slate-900">{n.title}</p>
-                                  <p className="text-xs text-slate-500">{n.message}</p>
+                                  <p className="text-sm font-semibold text-slate-900">{task.title}</p>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                      <Clock className="w-3 h-3 text-slate-400" />
+                                      <span className="text-xs text-slate-500">
+                                          {new Date(task.dueDate).toLocaleDateString()}
+                                      </span>
+                                      {task.leadName && (
+                                          <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded ml-1">
+                                              {task.leadName}
+                                          </span>
+                                      )}
+                                  </div>
                               </div>
-                              <span className="text-xs text-slate-400">{n.time}</span>
+                              <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${
+                                  task.priority === 'HIGH' ? 'bg-red-100 text-red-600' : 'bg-blue-50 text-blue-600'
+                              }`}>
+                                  {task.priority}
+                              </span>
                           </div>
                       ))}
+                      {tasks.filter(t => !t.completed).length === 0 && (
+                          <div className="text-center py-6 text-slate-400 text-sm">All caught up!</div>
+                      )}
                   </div>
               </div>
+
                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
                   <h3 className="font-bold text-slate-800 mb-4">Urgent Actions</h3>
                   <div className="space-y-3">
@@ -166,6 +197,64 @@ const CRM: React.FC<CRMProps> = ({
                       )}
                   </div>
               </div>
+          </div>
+      </div>
+  );
+
+  const TasksView = () => (
+      <div className="animate-in fade-in duration-500 h-full flex flex-col">
+          <div className="flex justify-between items-center mb-6">
+              <div>
+                   <h2 className="text-2xl font-bold text-slate-800">Tasks</h2>
+                   <p className="text-slate-500 text-sm">Follow-ups and to-dos</p>
+              </div>
+              <button className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex gap-2 items-center hover:bg-indigo-700">
+                  <Plus className="w-4 h-4" /> New Task
+              </button>
+          </div>
+          
+          <div className="grid grid-cols-1 gap-4 overflow-y-auto pb-20">
+              {tasks.map(task => (
+                  <div key={task.id} className={`p-4 rounded-xl border transition-all ${task.completed ? 'bg-slate-50 border-slate-100 opacity-60' : 'bg-white border-slate-200 hover:shadow-md'}`}>
+                      <div className="flex items-start gap-4">
+                          <button 
+                            onClick={() => onUpdateTask({...task, completed: !task.completed})}
+                            className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors mt-0.5 ${
+                                task.completed ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 hover:border-indigo-500'
+                            }`}
+                          >
+                              {task.completed && <CheckCircle className="w-4 h-4" />}
+                          </button>
+                          
+                          <div className="flex-1">
+                              <h3 className={`font-bold ${task.completed ? 'text-slate-500 line-through' : 'text-slate-800'}`}>
+                                  {task.title}
+                              </h3>
+                              
+                              <div className="flex flex-wrap items-center gap-3 mt-2">
+                                  <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                                      <CalendarIcon className="w-3.5 h-3.5" />
+                                      {new Date(task.dueDate).toLocaleDateString()}
+                                  </div>
+                                  
+                                  {task.leadName && (
+                                      <div className="flex items-center gap-1.5 text-xs text-indigo-600 bg-indigo-50 px-2 py-1 rounded font-medium">
+                                          <UserIcon className="w-3 h-3" />
+                                          {task.leadName}
+                                      </div>
+                                  )}
+                                  
+                                  <div className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
+                                      task.priority === 'HIGH' ? 'bg-red-100 text-red-600' : 
+                                      task.priority === 'MEDIUM' ? 'bg-amber-100 text-amber-600' : 'bg-blue-50 text-blue-600'
+                                  }`}>
+                                      {task.priority}
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              ))}
           </div>
       </div>
   );
@@ -578,9 +667,17 @@ const CRM: React.FC<CRMProps> = ({
                ))}
                {Array.from({length: 35}).map((_, i) => {
                   const day = i - 3; 
+                  // Mock Logic to show task dots
+                  const hasTask = tasks.some(t => !t.completed && new Date(t.dueDate).getDate() === day);
+
                   return (
-                      <div key={i} className="bg-white p-2 min-h-[80px] hover:bg-slate-50 transition-colors">
-                          {day > 0 && day <= 30 && <span className="text-sm font-medium text-slate-700">{day}</span>}
+                      <div key={i} className="bg-white p-2 min-h-[80px] hover:bg-slate-50 transition-colors relative">
+                          {day > 0 && day <= 30 && (
+                              <>
+                                <span className={`text-sm font-medium ${hasTask ? 'text-indigo-600' : 'text-slate-700'}`}>{day}</span>
+                                {hasTask && <div className="absolute bottom-2 right-2 w-2 h-2 rounded-full bg-indigo-500"></div>}
+                              </>
+                          )}
                       </div>
                   );
                })}
@@ -689,6 +786,7 @@ const CRM: React.FC<CRMProps> = ({
                     <div className="px-3 space-y-0.5">
                         <NavItem id="leads" label="Leads" icon={UserIcon} badge={leads.length.toString()} />
                         <NavItem id="properties" label="Properties" icon={Home} />
+                        <NavItem id="tasks" label="Tasks" icon={CheckSquare} badge={pendingTasks > 0 ? pendingTasks.toString() : undefined} />
                         <NavItem id="calendar" label="Calendar" icon={CalendarIcon} />
                         <NavItem id="maintenance" label="Maintenance" icon={Wrench} badge={tickets.filter(t=>t.status==='OPEN').length.toString()} />
                     </div>
@@ -761,6 +859,7 @@ const CRM: React.FC<CRMProps> = ({
                     {tab === 'analytics' && <AnalyticsView />}
                     {tab === 'documents' && <DocumentsView />}
                     {tab === 'finance' && <FinanceView />}
+                    {tab === 'tasks' && <TasksView />}
                     {(tab === 'calendar' || tab === 'schedule') && <CalendarView />}
                     {(tab === 'maintenance' || tab === 'requests' || tab === 'jobs') && <MaintenanceView />}
                     

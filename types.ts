@@ -4,7 +4,7 @@ export interface Recording {
   timestamp: number;
   duration: number; // in seconds
   url: string;
-  outcome: 'connected' | 'missed' | 'voicemail';
+  outcome: 'connected' | 'missed' | 'voicemail' | 'follow_up' | 'closed';
 }
 
 export interface Lead {
@@ -128,4 +128,14 @@ export interface Campaign {
   status: 'Active' | 'Paused';
   clicks: number;
   spend: string;
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  dueDate: string;
+  completed: boolean;
+  leadId?: string;
+  leadName?: string;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH';
 }
