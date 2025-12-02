@@ -1,4 +1,5 @@
-import { Lead, Property } from './types';
+
+import { Lead, Property, Notification } from './types';
 
 export const LAURENT_SYSTEM_PROMPT = `
 You are **Laurent De Wilde**.
@@ -167,3 +168,23 @@ export const MOCK_PROPERTIES: Property[] = [
     image: 'https://picsum.photos/400/300?random=3'
   }
 ];
+
+export const MOCK_NOTIFICATIONS: Record<string, Notification[]> = {
+  BROKER: [
+    { id: '1', title: 'New Lead', message: 'Sophie Dubois submitted a contact form.', time: '10m ago', read: false, type: 'info' },
+    { id: '2', title: 'Contract Signed', message: 'Lease agreement signed for Kouter 12.', time: '2h ago', read: true, type: 'success' },
+    { id: '3', title: 'SLA Warning', message: 'Maintenance request #4092 is overdue.', time: '5h ago', read: false, type: 'alert' }
+  ],
+  OWNER: [
+    { id: '1', title: 'Rent Received', message: 'Tenant at Meir 24 paid September rent.', time: '1h ago', read: false, type: 'success' },
+    { id: '2', title: 'Approval Needed', message: 'Plumbing repair quote ($240) requires approval.', time: '1d ago', read: false, type: 'alert' }
+  ],
+  RENTER: [
+    { id: '1', title: 'Request Update', message: 'Your maintenance request #4092 has been scheduled.', time: '30m ago', read: false, type: 'success' },
+    { id: '2', title: 'Building Notice', message: 'Water shutoff scheduled for Tuesday 9AM-11AM.', time: '2d ago', read: true, type: 'info' }
+  ],
+  CONTRACTOR: [
+    { id: '1', title: 'New Job Assigned', message: 'Leaking faucet at Louise Ave 200.', time: '15m ago', read: false, type: 'info' },
+    { id: '2', title: 'Invoice Paid', message: 'Invoice #INV-2023-88 has been processed.', time: '3h ago', read: true, type: 'success' }
+  ]
+};
