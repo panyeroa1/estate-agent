@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Dialer from './components/Dialer';
 import CRM from './components/CRM';
 import { Lead, CallState, Recording, User, Property, AgentPersona, UserRole, Task } from './types';
@@ -38,6 +38,10 @@ const App: React.FC = () => {
   
   // Agent Config State
   const [agentPersona, setAgentPersona] = useState<AgentPersona>(DEFAULT_AGENT_PERSONA);
+
+  // Refs for Ringing Logic
+  const ringtoneRef = useRef<HTMLAudioElement | null>(null);
+  const ringTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -113,18 +117,39 @@ const App: React.FC = () => {
   };
 
   const startCall = async (number: string) => {
-    setCallState(CallState.CONNECTING);
+    // 1. Set Ringing State
+    setCallState(CallState.RINGING);
+    
+    // 2. Play Ringtone
+    const ringAudio = new Audio('https://botsrhere.online/deontic/callerpro/ring.mp3');
+    ringAudio.loop = true;
+    ringtoneRef.current = ringAudio;
+    
     try {
-        // Generate prompt based on current persona config
-        const dynamicInstruction = generateSystemPrompt(agentPersona);
-        
-        await geminiClient.connect(dynamicInstruction);
-        setCallState(CallState.ACTIVE);
-    } catch (e) {
-        console.error("Failed to connect call", e);
-        setCallState(CallState.ERROR);
-        setTimeout(() => setCallState(CallState.IDLE), 2000);
+        await ringAudio.play();
+    } catch(e) {
+        console.error("Audio play failed", e);
     }
+
+    // 3. Wait 9s then connect
+    ringTimeoutRef.current = setTimeout(async () => {
+        // Stop Ringing
+        if (ringtoneRef.current) {
+            ringtoneRef.current.pause();
+            ringtoneRef.current = null;
+        }
+
+        setCallState(CallState.CONNECTING);
+        try {
+            const dynamicInstruction = generateSystemPrompt(agentPersona);
+            await geminiClient.connect(dynamicInstruction);
+            setCallState(CallState.ACTIVE);
+        } catch (e) {
+            console.error("Failed to connect call", e);
+            setCallState(CallState.ERROR);
+            setTimeout(() => setCallState(CallState.IDLE), 2000);
+        }
+    }, 9000); // 9 seconds delay
   };
 
   const stopRecordingAndPrompt = async () => {
@@ -143,6 +168,16 @@ const App: React.FC = () => {
   };
 
   const handleEndCall = async () => {
+    // Cleanup Ringtone if active
+    if (ringtoneRef.current) {
+        ringtoneRef.current.pause();
+        ringtoneRef.current = null;
+    }
+    if (ringTimeoutRef.current) {
+        clearTimeout(ringTimeoutRef.current);
+        ringTimeoutRef.current = null;
+    }
+
     if (isRecording) {
         await stopRecordingAndPrompt();
     }

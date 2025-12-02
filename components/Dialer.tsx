@@ -131,6 +131,11 @@ const Dialer: React.FC<DialerProps> = ({
                      <div className="w-1 bg-green-500 animate-pulse h-4 rounded-full animation-delay-150"></div>
                  </div>
              )}
+             {callState === CallState.RINGING && (
+                 <div className="flex gap-1 items-center h-3">
+                     <Phone className="w-3 h-3 text-white animate-pulse" fill="currentColor"/>
+                 </div>
+             )}
              {isRecording && <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></div>}
         </div>
       </div>
@@ -235,7 +240,7 @@ const Dialer: React.FC<DialerProps> = ({
           ) : (
              <div className="text-center animate-in fade-in zoom-in duration-300">
                  <div className="relative w-28 h-28 mx-auto mb-6">
-                     <div className="absolute inset-0 bg-indigo-200 rounded-full animate-ping opacity-20"></div>
+                     <div className={`absolute inset-0 bg-indigo-200 rounded-full animate-ping opacity-20 ${callState === CallState.RINGING ? 'animation-duration-1000' : ''}`}></div>
                      <div className="w-full h-full bg-gradient-to-b from-slate-100 to-slate-200 rounded-full flex items-center justify-center shadow-xl border-4 border-white relative z-10">
                         <span className="text-4xl text-slate-700 font-bold">
                             {(activeLeadName || 'Laurent')[0]}
@@ -255,6 +260,7 @@ const Dialer: React.FC<DialerProps> = ({
                  
                  {/* Timer / Status Pill */}
                  <div className="inline-flex items-center justify-center px-5 py-2 bg-slate-100 rounded-full backdrop-blur-sm shadow-inner">
+                    {callState === CallState.RINGING && <p className="text-sm font-medium text-slate-600 animate-pulse">Ringing...</p>}
                     {callState === CallState.CONNECTING && <p className="text-sm font-medium text-slate-600 animate-pulse">Connecting...</p>}
                     {callState === CallState.ACTIVE && <p className="text-lg font-mono text-slate-800 font-bold tracking-widest">{formatTime(duration)}</p>}
                  </div>

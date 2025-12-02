@@ -31,6 +31,7 @@ export interface Property {
 
 export enum CallState {
   IDLE = 'IDLE',
+  RINGING = 'RINGING',
   CONNECTING = 'CONNECTING',
   ACTIVE = 'ACTIVE',
   ENDED = 'ENDED',
