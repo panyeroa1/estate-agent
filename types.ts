@@ -140,3 +140,19 @@ export interface Task {
   leadName?: string;
   priority: 'LOW' | 'MEDIUM' | 'HIGH';
 }
+
+export interface Job {
+  id: string;
+  title: string;
+  date: string;
+  status: string;
+  address: string;
+}
+
+export interface BlandConfig {
+  voiceId: string;
+  fromNumber: string;
+  model: string;
+  language: string;
+  tools: string[];
+}

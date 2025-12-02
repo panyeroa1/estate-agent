@@ -1,5 +1,5 @@
 
-import { Lead, Property, Notification, Document, AgentPersona, Email, Campaign } from './types';
+import { Lead, Property, Notification, Document, AgentPersona, Email, Campaign, BlandConfig } from './types';
 
 export const LAURENT_SYSTEM_PROMPT = `
 You are **Laurent De Wilde**.
@@ -101,6 +101,22 @@ export const DEFAULT_AGENT_PERSONA: AgentPersona = {
     'Schedule property viewings',
     'Reassure property owners',
     'Close management contracts'
+  ]
+};
+
+export const BLAND_AUTH = {
+  apiKey: 'org_5009c11063cb54d7d1daa2cbef4944f6a57f464015cdaa3767d5047fd5cab63a1012a08785c667becd0369',
+  encryptedKey: '0ec48f6b-9d48-4e8b-b050-c59d7d673a85'
+};
+
+export const BLAND_SETTINGS: BlandConfig = {
+  voiceId: '55337f4e-482c-4644-b94e-d9671e4d7079',
+  fromNumber: '+15674234720',
+  model: 'base',
+  language: 'babel',
+  tools: [
+    "KB-522e6502-d4b5-48b9-8cda-f92beaace704",
+    "KB-f59c2d3b-9359-4e27-aaf5-849912808288"
   ]
 };
 

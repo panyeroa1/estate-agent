@@ -4,6 +4,7 @@ import Dialer from './components/Dialer';
 import CRM from './components/CRM';
 import { Lead, CallState, Recording, User, Property, AgentPersona, UserRole, Task } from './types';
 import { geminiClient } from './services/geminiService';
+import { blandService } from './services/blandService';
 import { Download, Save, Trash2, X, AlertCircle } from 'lucide-react';
 import { db } from './services/db';
 import { DEFAULT_AGENT_PERSONA, generateSystemPrompt } from './constants';
@@ -42,11 +43,15 @@ const App: React.FC = () => {
   // Refs for Ringing Logic
   const ringtoneRef = useRef<HTMLAudioElement | null>(null);
   const ringTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // Bland AI Monitoring Socket
+  const [monitorWs, setMonitorWs] = useState<WebSocket | null>(null);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     
+    // Gemini Volume (for Agent Config / Demo mode if used)
     geminiClient.onVolumeChange = (inp, outp) => {
         setAudioVols({ in: inp, out: outp });
     };
@@ -58,6 +63,7 @@ const App: React.FC = () => {
     return () => {
         window.removeEventListener('resize', handleResize);
         geminiClient.disconnect();
+        if(monitorWs) monitorWs.close();
     };
   }, []);
 
@@ -131,31 +137,65 @@ const App: React.FC = () => {
         console.error("Audio play failed", e);
     }
 
-    // 3. Wait 9s then connect
-    ringTimeoutRef.current = setTimeout(async () => {
-        // Stop Ringing
+    // 3. Initiate Call via Bland AI Service
+    // We start the API call immediately. The Ringtone gives the user feedback while the API processes.
+    
+    try {
+        const result = await blandService.initiateCall(number, agentPersona);
+        
+        if (result.status === 'success' && result.call_id) {
+            console.log("Call Initiated:", result.call_id);
+            
+            // Wait for 9s ring effect to complete or match ring time
+            // In a real dialer we might wait for a webhook 'answered' event, 
+            // but for this UI we simulate the transition after ringing.
+            
+            ringTimeoutRef.current = setTimeout(async () => {
+                if (ringtoneRef.current) {
+                    ringtoneRef.current.pause();
+                    ringtoneRef.current = null;
+                }
+                
+                setCallState(CallState.ACTIVE);
+                
+                // Attempt to connect to live monitoring stream for visualization
+                const wsUrl = await blandService.listenToCall(result.call_id);
+                if (wsUrl) {
+                    const ws = new WebSocket(wsUrl);
+                    ws.onmessage = () => {
+                        // Simulate visuals on message (real data requires parsing binary/base64)
+                         setAudioVols({ in: Math.random() * 0.5, out: Math.random() * 0.5 });
+                    };
+                    setMonitorWs(ws);
+                }
+
+            }, 9000); 
+
+        } else {
+             throw new Error(result.message || "Call failed to start");
+        }
+    } catch (e) {
+        console.error("Failed to connect call", e);
         if (ringtoneRef.current) {
             ringtoneRef.current.pause();
             ringtoneRef.current = null;
         }
-
-        setCallState(CallState.CONNECTING);
-        try {
-            const dynamicInstruction = generateSystemPrompt(agentPersona);
-            await geminiClient.connect(dynamicInstruction);
-            setCallState(CallState.ACTIVE);
-        } catch (e) {
-            console.error("Failed to connect call", e);
-            setCallState(CallState.ERROR);
-            setTimeout(() => setCallState(CallState.IDLE), 2000);
-        }
-    }, 9000); // 9 seconds delay
+        setCallState(CallState.ERROR);
+        setTimeout(() => setCallState(CallState.IDLE), 2000);
+    }
   };
 
   const stopRecordingAndPrompt = async () => {
-    const url = await geminiClient.stopRecording();
+    // With Bland, recording is server-side. 
+    // For this demo, we simulate the "Stop Recording" action finishing the call session or marking it.
+    // If using Gemini (browser), we had a blob. With Bland, we'd fetch the recording URL from API later.
+    // We'll simulate a URL for the UI flow.
+    
     const duration = Math.floor((Date.now() - recordingStartTime) / 1000);
     setIsRecording(false);
+    
+    // Mock recording URL for the review modal (In real app, fetch from Bland /v1/calls/{id}/recording)
+    const url = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"; 
     
     if (url) {
        setPendingRecording({
@@ -177,18 +217,27 @@ const App: React.FC = () => {
         clearTimeout(ringTimeoutRef.current);
         ringTimeoutRef.current = null;
     }
+    
+    if (monitorWs) {
+        monitorWs.close();
+        setMonitorWs(null);
+    }
 
     if (isRecording) {
         await stopRecordingAndPrompt();
     }
+    
+    // If using Gemini client for other features, disconnect it too
     geminiClient.disconnect();
+    
     setCallState(CallState.ENDED);
     setTimeout(() => setCallState(CallState.IDLE), 2000);
   };
 
   const toggleRecording = (shouldRecord: boolean) => {
     if (shouldRecord) {
-        geminiClient.startRecording();
+        // Bland records automatically if config.record is true. 
+        // This button mainly tracks UI state for the "Review" modal.
         setRecordingStartTime(Date.now());
         setIsRecording(true);
     } else {
@@ -237,7 +286,7 @@ const App: React.FC = () => {
       if (!pendingRecording) return;
       const a = document.createElement('a');
       a.href = pendingRecording.url;
-      a.download = `call-recording-${new Date(pendingRecording.timestamp).toISOString()}.webm`;
+      a.download = `call-recording-${new Date(pendingRecording.timestamp).toISOString()}.mp3`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
