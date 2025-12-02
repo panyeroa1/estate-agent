@@ -1,11 +1,10 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import Dialer from './components/Dialer';
 import CRM from './components/CRM';
-import Auth from './components/Auth';
 import { Lead, CallState, Recording, User, Property } from './types';
 import { geminiClient } from './services/geminiService';
-import { Download, Save, Trash2, X, Play } from 'lucide-react';
+import { Download, Save, Trash2, X } from 'lucide-react';
 import { db } from './services/db';
 
 interface PendingRec {
@@ -14,8 +13,17 @@ interface PendingRec {
   timestamp: number;
 }
 
+const DEFAULT_USER: User = {
+  id: 'demo-broker',
+  name: 'Laurent De Wilde',
+  email: 'laurent@eburon.com',
+  role: 'BROKER',
+  avatar: 'https://ui-avatars.com/api/?name=Laurent+De+Wilde&background=random'
+};
+
 const App: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  // Initialize directly with the default user
+  const [currentUser, setCurrentUser] = useState<User | null>(DEFAULT_USER);
   const [activeLead, setActiveLead] = useState<Lead | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
@@ -157,8 +165,16 @@ const App: React.FC = () => {
       setPendingRecording(null);
   };
 
+  const handleLogout = () => {
+      // For demo purposes, just reset to default user instead of effectively breaking the app with null
+      if (window.confirm("Are you sure you want to sign out? (Demo: This will reset the session)")) {
+          setCurrentUser(DEFAULT_USER);
+          window.location.reload(); 
+      }
+  };
+
   if (!currentUser) {
-    return <Auth onLogin={(user) => setCurrentUser(user)} />;
+      return <div className="h-screen w-screen flex items-center justify-center bg-slate-50 text-slate-400">Loading...</div>;
   }
 
   return (
@@ -174,7 +190,7 @@ const App: React.FC = () => {
                 selectedLeadId={activeLead?.id || null}
                 onUpdateLead={handleUpdateLead}
                 currentUser={currentUser}
-                onLogout={() => setCurrentUser(null)}
+                onLogout={handleLogout}
             />
         </div>
       )}

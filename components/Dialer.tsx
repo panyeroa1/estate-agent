@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Phone, Mic, MicOff, PhoneOff, Disc, Delete, Search, User, X, Check } from 'lucide-react';
 import { CallState, Lead } from '../types';
 
@@ -35,6 +35,10 @@ const Dialer: React.FC<DialerProps> = ({
   const [duration, setDuration] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+
+  // Refs for Long Press Logic (0 -> +)
+  const longPressTimerRef = useRef<any>(null);
+  const isLongPressRef = useRef(false);
 
   useEffect(() => {
     if (activeLeadPhone) {
@@ -73,6 +77,37 @@ const Dialer: React.FC<DialerProps> = ({
       setDialNumber(lead.phone);
       setSearchTerm('');
       setShowSearch(false);
+  };
+
+  // --- Long Press Logic for '0' ---
+  const handlePressStart = (key: string) => {
+    if (key !== '0') return;
+    isLongPressRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      isLongPressRef.current = true;
+      if (callState === CallState.IDLE) {
+         setDialNumber(prev => prev + '+');
+         // Haptic feedback if available
+         if (navigator.vibrate) navigator.vibrate(50);
+      }
+    }, 500); // 500ms threshold
+  };
+
+  const handlePressEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handlePadButtonAction = (key: string) => {
+      // If it was a long press on 0, the '+' is already added by the timer.
+      // We must prevent the default click from adding '0'.
+      if (key === '0' && isLongPressRef.current) {
+          isLongPressRef.current = false; // Reset
+          return;
+      }
+      handlePadClick(key);
   };
 
   const filteredLeads = leads.filter(l => 
@@ -254,14 +289,20 @@ const Dialer: React.FC<DialerProps> = ({
                 {['1','2','3','4','5','6','7','8','9','*','0','#'].map((key) => (
                     <button 
                         key={key} 
-                        onClick={() => handlePadClick(key)}
-                        className="w-[72px] h-[72px] rounded-full bg-slate-200 hover:bg-slate-300 flex flex-col items-center justify-center transition-all active:scale-95 active:bg-slate-400 group"
+                        // Long press handlers for '0'
+                        onMouseDown={() => handlePressStart(key)}
+                        onMouseUp={handlePressEnd}
+                        onMouseLeave={handlePressEnd}
+                        onTouchStart={() => handlePressStart(key)}
+                        onTouchEnd={handlePressEnd}
+                        onClick={() => handlePadButtonAction(key)}
+                        className="w-[72px] h-[72px] rounded-full bg-slate-200 hover:bg-slate-300 flex flex-col items-center justify-center transition-all active:scale-95 active:bg-slate-400 group select-none"
                     >
                         <span className="text-3xl font-normal text-slate-900 leading-none mb-0.5">{key}</span>
-                        {/* Letters below numbers */}
+                        {/* Letters below numbers & Plus logic */}
                         {key !== '*' && key !== '#' && key !== '1' && (
-                            <span className="text-[9px] font-bold text-slate-500 tracking-[2px] h-3">
-                                {key === '2' ? 'ABC' : key === '3' ? 'DEF' : key === '4' ? 'GHI' : key === '5' ? 'JKL' : key === '6' ? 'MNO' : key === '7' ? 'PQRS' : key === '8' ? 'TUV' : key === '9' ? 'WXYZ' : ''}
+                            <span className={`text-[9px] font-bold text-slate-500 tracking-[2px] h-3 ${key === '0' ? 'text-lg -mt-1 font-normal tracking-normal' : ''}`}>
+                                {key === '0' ? '+' : (key === '2' ? 'ABC' : key === '3' ? 'DEF' : key === '4' ? 'GHI' : key === '5' ? 'JKL' : key === '6' ? 'MNO' : key === '7' ? 'PQRS' : key === '8' ? 'TUV' : key === '9' ? 'WXYZ' : '')}
                             </span>
                         )}
                          {key === '1' && <span className="text-[9px] text-transparent h-3 select-none">.</span>}
