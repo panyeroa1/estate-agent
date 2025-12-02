@@ -850,7 +850,7 @@ const CRM: React.FC<CRMProps> = ({
         <div className="flex-1 flex overflow-hidden bg-slate-50/50 relative">
             
             {/* List / Main View */}
-            <div className={`flex-1 overflow-y-auto no-scrollbar p-4 md:p-8 transition-all duration-300 ${activeLead && currentUser.role === 'BROKER' && tab === 'leads' ? 'hidden lg:block' : ''}`}>
+            <div className={`flex-1 min-w-0 overflow-y-auto no-scrollbar p-4 md:p-8 transition-all duration-300 ${activeLead && currentUser.role === 'BROKER' && tab === 'leads' ? 'hidden lg:block' : 'block'}`}>
                 <div className="max-w-7xl mx-auto h-full">
                     {tab === 'dashboard' && <DashboardView />}
                     {tab === 'inbox' && <InboxView />}
@@ -904,21 +904,21 @@ const CRM: React.FC<CRMProps> = ({
                                             >
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-500">
+                                                        <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-500 shrink-0">
                                                             {lead.firstName[0]}{lead.lastName[0]}
                                                         </div>
-                                                        <div>
-                                                            <div className="font-semibold text-slate-900">{lead.firstName} {lead.lastName}</div>
-                                                            <div className="text-xs text-slate-500">{lead.phone}</div>
+                                                        <div className="min-w-0">
+                                                            <div className="font-semibold text-slate-900 truncate">{lead.firstName} {lead.lastName}</div>
+                                                            <div className="text-xs text-slate-500 truncate">{lead.phone}</div>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 hidden md:table-cell">
+                                                <td className="px-6 py-4 hidden md:table-cell whitespace-nowrap">
                                                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border bg-blue-50 text-blue-700 border-blue-100">
                                                         {lead.interest}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 hidden sm:table-cell">
+                                                <td className="px-6 py-4 hidden sm:table-cell whitespace-nowrap">
                                                     <span className="text-slate-600 font-medium text-sm">{lead.status}</span>
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
@@ -960,11 +960,11 @@ const CRM: React.FC<CRMProps> = ({
 
             {/* Detail Pane (Broker Only) */}
             {activeLead && currentUser.role === 'BROKER' && tab === 'leads' && (
-                <div className="w-full lg:w-[400px] shrink-0 bg-white border-l border-slate-200 shadow-2xl overflow-y-auto z-20 lg:relative absolute inset-0 lg:inset-auto animate-in slide-in-from-right duration-300 flex flex-col">
-                    {/* Detail Pane Content (Similar to previous implementation) */}
+                <div className="w-full lg:w-[380px] shrink-0 bg-white border-l border-slate-200 shadow-2xl overflow-y-auto z-20 lg:relative absolute inset-0 lg:inset-auto animate-in slide-in-from-right duration-300 flex flex-col">
+                    {/* Detail Pane Content */}
                     <div className="p-6 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10">
                         <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Lead Details</h3>
-                        <button onClick={() => onSelectLead(null)}><X className="w-5 h-5 text-slate-500" /></button>
+                        <button onClick={() => onSelectLead(null)} className="p-1 hover:bg-slate-100 rounded-lg"><X className="w-5 h-5 text-slate-500" /></button>
                     </div>
                     <div className="p-6">
                          <div className="flex items-center gap-5 mb-8">
@@ -976,7 +976,7 @@ const CRM: React.FC<CRMProps> = ({
                                 <p className="text-slate-500 text-sm">{activeLead.phone}</p>
                              </div>
                         </div>
-                        {/* Call History & Notes Section (Simplified for brevity as it's reused) */}
+                        {/* Call History & Notes Section */}
                          <div className="mb-6">
                              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">History</h4>
                              {activeLead.recordings.map(rec => (
@@ -988,16 +988,20 @@ const CRM: React.FC<CRMProps> = ({
                                      <span className="text-xs font-mono">{rec.duration}s</span>
                                  </div>
                              ))}
+                             {activeLead.recordings.length === 0 && <p className="text-xs text-slate-400 italic">No calls yet.</p>}
                          </div>
                          <div>
                             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Notes</h4>
+                            <div className="bg-slate-50 p-3 rounded-lg text-sm text-slate-600 mb-3 max-h-40 overflow-y-auto whitespace-pre-wrap">
+                                {activeLead.notes || 'No notes available.'}
+                            </div>
                             <textarea 
                                 value={noteInput} 
                                 onChange={e => setNoteInput(e.target.value)} 
-                                className="w-full p-3 border rounded-lg text-sm bg-slate-50 min-h-[100px]"
-                                placeholder="Add a note..."
+                                className="w-full p-3 border border-slate-200 rounded-lg text-sm bg-white min-h-[100px] outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                placeholder="Add a new note..."
                             />
-                            <button onClick={handleSaveNote} className="mt-2 w-full bg-indigo-600 text-white py-2 rounded-lg text-sm font-bold">Save Note</button>
+                            <button onClick={handleSaveNote} className="mt-2 w-full bg-indigo-600 text-white py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-indigo-700 transition-colors">Save Note</button>
                          </div>
                     </div>
                 </div>

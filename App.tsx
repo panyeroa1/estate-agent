@@ -228,7 +228,7 @@ const App: React.FC = () => {
       
       {/* Desktop CRM Layout */}
       {!isMobile && (
-        <div className="flex-1 h-full">
+        <div className="flex-1 h-full min-w-0">
             <CRM 
                 leads={leads} 
                 properties={properties} 
@@ -248,7 +248,7 @@ const App: React.FC = () => {
 
       {/* Phone Overlay */}
       <div className={`
-        transition-all duration-500 ease-in-out
+        transition-all duration-500 ease-in-out shrink-0
         ${isMobile ? 'w-full h-full absolute inset-0 z-50' : 'w-[420px] h-full border-l border-slate-200 bg-white shadow-2xl relative z-40 p-8 flex items-center justify-center'}
       `}>
          <div className={`${isMobile ? 'w-full h-full' : 'w-[360px] h-[720px]'} transition-all`}>
