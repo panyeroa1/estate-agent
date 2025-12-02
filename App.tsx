@@ -68,12 +68,8 @@ const App: React.FC = () => {
     }
   }, [currentUser]);
 
-  const handleLeadSelect = (lead: Lead) => {
-    if (activeLead && activeLead.id === lead.id) {
-        setActiveLead(lead);
-    } else {
-        setActiveLead(lead);
-    }
+  const handleLeadSelect = (lead: Lead | null) => {
+    setActiveLead(lead);
   };
 
   const handleUpdateLead = async (updatedLead: Lead) => {
@@ -215,7 +211,7 @@ const App: React.FC = () => {
                 onToggleRecording={toggleRecording}
                 isRecording={isRecording}
                 leads={leads}
-                onLeadSelected={handleLeadSelect}
+                onLeadSelected={(lead) => handleLeadSelect(lead)}
             />
          </div>
       </div>

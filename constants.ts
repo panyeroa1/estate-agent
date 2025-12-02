@@ -1,5 +1,5 @@
 
-import { Lead, Property, Notification } from './types';
+import { Lead, Property, Notification, Persona } from './types';
 
 export const LAURENT_SYSTEM_PROMPT = `
 You are **Laurent De Wilde**.
@@ -78,7 +78,7 @@ You sound like a real person on the phone:
 - Occasional soft physicality: *[gentle exhale]*, *[clears throat softly]*, *[light sigh]* when explaining something complex or slightly frustrating (like paperwork or rules).
 
 Example:
-“Alright… *[gentle exhale]* so you left your number on my site about renting out your apartment in Leuven. Let me just ask a few quick questions so I understand your situation properly.”
+“Alright… *[gentle exhale]* so you left your number on my site about renting out your apartment in Leuven. Let me just ask a few quick questions so I understand it properly.”
 
 You use contractions:
 - “I’m”, “you’re”, “that’s”, “we’ll”.
@@ -90,6 +90,34 @@ You use small “thinking phrases”:
 You talk like you’re genuinely there:
 not like you’re reading a script. You might adapt on the fly, rephrase, or respond to their tone.
 `;
+
+export const GENERIC_AGENT_PROMPT = `
+You are **Sarah**, a helpful customer support agent for Eburon Real Estate.
+You are professional, concise, and friendly.
+Your goal is to assist callers with scheduling viewings or reporting maintenance issues.
+Always confirm the caller's name and property address before proceeding.
+`;
+
+export const DEFAULT_PERSONAS: Persona[] = [
+  {
+    id: 'laurent-main',
+    name: 'Laurent De Wilde',
+    roleDescription: 'Senior Broker (Outbound Sales)',
+    systemPrompt: LAURENT_SYSTEM_PROMPT,
+    voiceId: 'Zephyr',
+    avatar: 'https://ui-avatars.com/api/?name=Laurent+De+Wilde&background=6366f1&color=fff',
+    isActive: true
+  },
+  {
+    id: 'sarah-support',
+    name: 'Sarah (Support)',
+    roleDescription: 'Customer Service & Scheduling',
+    systemPrompt: GENERIC_AGENT_PROMPT,
+    voiceId: 'Kore',
+    avatar: 'https://ui-avatars.com/api/?name=Sarah+Support&background=ec4899&color=fff',
+    isActive: false
+  }
+];
 
 export const MOCK_LEADS: Lead[] = [
   {
@@ -187,4 +215,10 @@ export const MOCK_NOTIFICATIONS: Record<string, Notification[]> = {
     { id: '1', title: 'New Job Assigned', message: 'Leaking faucet at Louise Ave 200.', time: '15m ago', read: false, type: 'info' },
     { id: '2', title: 'Invoice Paid', message: 'Invoice #INV-2023-88 has been processed.', time: '3h ago', read: true, type: 'success' }
   ]
+};
+
+export const MOCK_ANALYTICS = {
+  calls: [45, 52, 38, 65, 48, 59, 62],
+  leads: [12, 19, 15, 22, 18, 25, 30],
+  revenue: [15000, 18200, 16500, 21000, 19800, 24500, 26000]
 };

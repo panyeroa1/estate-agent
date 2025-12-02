@@ -92,3 +92,22 @@ export interface Message {
   read: boolean;
   threadId: string;
 }
+
+export interface Persona {
+  id: string;
+  name: string;
+  roleDescription: string;
+  systemPrompt: string;
+  voiceId: string; // e.g., 'Zephyr', 'Puck'
+  avatar: string;
+  isActive: boolean;
+}
+
+export interface Integration {
+  id: string;
+  type: 'EMAIL' | 'WHATSAPP' | 'FACEBOOK' | 'INSTAGRAM' | 'LINKEDIN';
+  name: string;
+  status: 'CONNECTED' | 'DISCONNECTED';
+  account: string;
+  lastSync?: string;
+}
