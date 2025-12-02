@@ -1,11 +1,12 @@
 
 import { supabase } from '../supabaseClient';
-import { Lead, Property, Ticket, User, UserRole, Task } from '../types';
-import { MOCK_LEADS, MOCK_PROPERTIES } from '../constants';
+import { Lead, Property, Ticket, User, UserRole, Task, AgentPersona } from '../types';
+import { MOCK_LEADS, MOCK_PROPERTIES, DEFAULT_AGENT_PERSONA } from '../constants';
 
 // MOCK DATA FALLBACKS (In case DB tables don't exist yet)
 let localLeads = [...MOCK_LEADS];
 let localProperties = [...MOCK_PROPERTIES];
+let localAgents = [DEFAULT_AGENT_PERSONA];
 let localTickets: Ticket[] = [
   {
     id: 't1', title: 'Leaking Faucet', description: 'Kitchen sink dripping constantly.', 
@@ -130,5 +131,31 @@ export const db = {
       try {
           await supabase.from('tasks').upsert(task);
       } catch(e) {}
+  },
+
+  // --- AGENTS ---
+  async getAgents(): Promise<AgentPersona[]> {
+    try {
+        const { data, error } = await supabase.from('agents').select('*');
+        if (error) throw error;
+        return data as AgentPersona[];
+    } catch (e) {
+        return localAgents;
+    }
+  },
+
+  async createAgent(agent: AgentPersona) {
+      const existingIndex = localAgents.findIndex(a => a.id === agent.id);
+      if (existingIndex >= 0) {
+          localAgents[existingIndex] = agent;
+      } else {
+          localAgents.push(agent);
+      }
+
+      try {
+          await supabase.from('agents').upsert(agent);
+      } catch (e) {
+          console.log('DB: Agent save failed, using local');
+      }
   }
 };

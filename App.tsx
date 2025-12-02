@@ -44,6 +44,7 @@ const App: React.FC = () => {
   const [isFetchingRecording, setIsFetchingRecording] = useState(false);
 
   // Agent Config State
+  const [agents, setAgents] = useState<AgentPersona[]>([]);
   const [agentPersona, setAgentPersona] = useState<AgentPersona>(DEFAULT_AGENT_PERSONA);
 
   // Refs for Ringing Logic
@@ -76,14 +77,25 @@ const App: React.FC = () => {
   useEffect(() => {
     if (currentUser) {
         const fetchData = async () => {
-            const [fetchedLeads, fetchedProperties, fetchedTasks] = await Promise.all([
+            const [fetchedLeads, fetchedProperties, fetchedTasks, fetchedAgents] = await Promise.all([
                 db.getLeads(),
                 db.getProperties(),
-                db.getTasks()
+                db.getTasks(),
+                db.getAgents()
             ]);
             setLeads(fetchedLeads);
             setProperties(fetchedProperties);
             setTasks(fetchedTasks);
+            
+            // Setup agents list and ensure default is present
+            let allAgents = fetchedAgents;
+            if (fetchedAgents.length === 0) {
+                allAgents = [DEFAULT_AGENT_PERSONA];
+                // Optionally save default if DB was empty
+                db.createAgent(DEFAULT_AGENT_PERSONA);
+            }
+            setAgents(allAgents);
+            setAgentPersona(allAgents[0]); // Default to first agent
         };
         fetchData();
     }
@@ -126,6 +138,13 @@ const App: React.FC = () => {
       
       setCurrentUser(newUser);
       setActiveLead(null); // Clear selection when switching
+  };
+
+  const handleSelectAgent = (agentId: string) => {
+      const selected = agents.find(a => a.id === agentId);
+      if (selected) {
+          setAgentPersona(selected);
+      }
   };
 
   const startCall = async (number: string) => {
@@ -359,6 +378,8 @@ const App: React.FC = () => {
                 onSwitchUser={handleSwitchUser}
                 tasks={tasks}
                 onUpdateTask={handleUpdateTask}
+                agents={agents}
+                onAgentsChange={setAgents}
             />
         </div>
       )}
@@ -381,6 +402,9 @@ const App: React.FC = () => {
                 isRecording={isRecording}
                 leads={leads}
                 onLeadSelected={(lead) => handleLeadSelect(lead)}
+                agents={agents}
+                selectedAgentId={agentPersona.id || 'default'}
+                onSelectAgent={handleSelectAgent}
             />
          </div>
       </div>

@@ -1,5 +1,4 @@
 
-
 export interface Recording {
   id: string;
   timestamp: number;
@@ -106,6 +105,7 @@ export interface Document {
 }
 
 export interface AgentPersona {
+  id?: string; // Optional for new creations, present for saved ones
   name: string;
   role: string;
   tone: string;
@@ -161,4 +161,10 @@ export interface BlandConfig {
   model: string;
   language: string;
   tools: string[];
+}
+
+export interface VoiceOption {
+  id: string;
+  name: string;
+  description: string;
 }
